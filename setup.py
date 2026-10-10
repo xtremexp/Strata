@@ -7687,9 +7687,16 @@ def main() -> int:
             say("  more on some PCs. --vision gpu if you want pictures in under a second.")
         else:
             say("  download and keeps ~1.4 GB of VRAM free for the image encoder, so text is a few % slower.")
-        # on by default wherever the model can read pictures (the reader by the 24 GB rule)
-        default = "y" if images_default(model, family, ram, gpu) else "n"
-        vision = flash_vision_encoder("yes", gpu) if ask("Do you want images?", ["y", "n"], default, a.yes) == "y" else "none"
+        # MODEL-UPDATE: on by default for Unsloth's files on a card with room for the encoder (24 GB and more)
+        default = "y" if unsloth_images_default(model, family, ram, gpu) else "n"
+        if ask("Do you want images?", ["y", "n"], default, a.yes) == "y":
+            vision = "none"
+        else:
+            say("  Image encoder:")
+            say("  1) GPU   (recommended: 0.1-0.5 s per picture, ~1.4 GB of VRAM kept free, text a few % slower)")
+            say("  2) CPU   (no VRAM: about 3 s per picture at 300 image tokens on 8 cores, and more tokens take")
+            say("             longer in proportion; the Q8_0 encoder file is the faster one here, see docs/DETAILS.md)")
+            vision = ["gpu", "cpu"][int(ask("Image encoder?", ["1", "2"], "1", a.yes)) - 1]
     ok("images: " + {"none": "off", "gpu": "on", "cpu": "on (encoder on the CPU)"}[vision])
     if vision != "none" and MODELS[model].get("vision_untested"):
         warn(f"images with {model} are untested: users report them working, but we have not run this file with "
