@@ -88,10 +88,13 @@ main { flex: 1; min-height: 0; display: flex; }
 .state-card__row { display: flex; justify-content: space-between; gap: var(--st-s-4); font-size: var(--st-fs-sm);
                    font-weight: var(--st-fw-medium); font-variant-numeric: tabular-nums; }
 .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--st-s-4); }
-.metric-card { padding: var(--st-s-4) var(--st-s-5); }
+.metric-card { padding: var(--st-s-4) var(--st-s-5); display: flex; }
+.metric-card .st-metric { flex: 1; }   /* fills the card, so every sparkline can sit at its bottom */
 .st-metric__value small { font-size: var(--st-fs-md); font-weight: var(--st-fw-medium); color: var(--st-ink-muted); margin-left: 4px; }
 .st-metric__sub { font-size: var(--st-fs-xs); color: var(--st-ink-muted); font-variant-numeric: tabular-nums; min-height: 1em; }
-.st-metric__spark { display: block; overflow: visible; }
+.st-metric__max { font-size: var(--st-fs-xs); color: var(--st-ink-muted); font-variant-numeric: tabular-nums; margin-top: -6px; }
+.st-metric__max:empty { display: none; }   /* no reading: no line, no gap */
+.st-metric__spark { display: block; overflow: visible; margin-top: auto; }   /* the cards in a row are as tall as the tallest: keep the graph at the bottom */
 .speed-values { display: flex; justify-content: space-between; gap: var(--st-s-3); }
 .speed-values > div { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .speed-values > div:last-child { text-align: right; }

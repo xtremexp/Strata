@@ -1,5 +1,6 @@
 """Request inspection through HTTP; no native model or GPU is required."""
 import json
+import re
 import threading
 import time
 import unittest
@@ -255,6 +256,36 @@ class ConversationCacheCard(unittest.TestCase):
         for el in ("cc-card", "cc-slots-text", "cc-mem-text", "cc-facts", "cc-note"):
             self.assertIn(f'id="{el}"', html)
             self.assertIn(f'"{el}"', js)
+
+
+class CardMaxima(unittest.TestCase):
+    """The Monitor's Speed, GPU temp, Power, PCIe and Disk read cards show the highest reading of the sparkline's
+    window (the last 60 s) under the live value, as "(max: ...)".  The number is the maximum of the history the card
+    already gets, so no endpoint changed: what the sampler does not record, the card leaves blank."""
+
+    def test_the_five_cards_ask_for_their_maximum(self):
+        web = Path(__file__).parent / "web"
+        js = (web / "app.js").read_text(encoding="utf-8")
+        css = (web / "app.css").read_text(encoding="utf-8")
+        for key in ("speed", "temp", "power", "pcie", "disk"):
+            self.assertRegex(js, rf'(?s)key: "{key}".*?maxText', key)  # the card asks for a max (its entry, lines and all)
+        self.assertIn("(max: ", js)                                    # the shape the user asked for
+        self.assertIn('class="st-metric__max"', js)
+        self.assertIn(".st-metric__max:empty { display: none; }", css)  # no reading: no line, no gap
+
+    def test_every_maximum_reads_a_series_the_sampler_records(self):
+        js = (Path(__file__).parent / "web" / "app.js").read_text(encoding="utf-8")
+        tel = (Path(__file__).parent / "telemetry.py").read_text(encoding="utf-8")
+        block = re.search(r"const METRICS = \[(.*?)\n\];", js, re.S).group(1)
+        loop = tel[tel.index("def _loop"):]                       # the sampler's own list of series
+        recorded = set(re.findall(r'"([a-z_]+)"', re.search(r"for k in \((.*?)\):", loop, re.S).group(1)))
+        asked = {}
+        for entry in re.split(r"\n  \{", block)[1:]:
+            if "maxText" in entry:
+                asked[re.search(r'key: "(\w+)"', entry).group(1)] = re.search(r'series: "(\w+)"', entry).group(1)
+        self.assertEqual(set(asked), {"speed", "temp", "power", "pcie", "disk"})
+        for key, series in asked.items():
+            self.assertIn(series, recorded, key)
 
 
 if __name__ == "__main__":
