@@ -110,23 +110,28 @@ async function loadHealth() {
 
 // ------------------------------------------------------------------ Monitor
 const METRICS = [
-  {key: "speed", label: "Speed", icon: "gauge", unit: "t/s", series: "tok_s"},
+  {key: "speed", label: "Speed", icon: "gauge", unit: "t/s", series: "tok_s", maxText: (v) => `${fmt(v, 1)} t/s`},
   {key: "gpu", label: "GPU load", icon: "gpu", unit: "%", series: "gpu_util", max: 100},
   {key: "vram", label: "VRAM", icon: "layers", unit: "GB", series: "gpu_mem_used"},
-  {key: "temp", label: "GPU temp", icon: "thermometer", unit: "°C", series: "gpu_temp", tone: "warn"},
-  {key: "power", label: "Power", icon: "bolt", unit: "W", series: "gpu_power"},
-  {key: "pcie", label: "PCIe", icon: "link", unit: "", series: "gpu_pcie_rx_mb", tone: "info"},
+  {key: "temp", label: "GPU temp", icon: "thermometer", unit: "°C", series: "gpu_temp", tone: "warn",
+   maxText: (v) => `${fmt(v)} °C`},
+  {key: "power", label: "Power", icon: "bolt", unit: "W", series: "gpu_power", maxText: (v) => `${fmt(v)} W`},
+  {key: "pcie", label: "PCIe", icon: "link", unit: "", series: "gpu_pcie_rx_mb", tone: "info", maxUnder: true,
+   maxText: (v) => `${fmt(v, v < 10 ? 1 : 0)} MB/s`},      // the live value is the link, so the max goes under the traffic line
   {key: "cpu", label: "CPU", icon: "cpu", unit: "%", series: "cpu", max: 100},
-  {key: "disk", label: "Disk read", icon: "disk", unit: "MB/s", series: "disk_read_mb", tone: "info"},
+  {key: "disk", label: "Disk read", icon: "disk", unit: "MB/s", series: "disk_read_mb", tone: "info",
+   maxText: (v) => (v >= 1000 ? `${fmt(v / 1024, 2)} GB/s` : `${fmt(v, v < 10 ? 1 : 0)} MB/s`)},
 ];
+// the highest reading of the sparkline's window (the last 60 s, serve/telemetry.py), under the live value
+const maxline = (key) => `<span class="st-metric__max" id="mx-${key}" title="the highest reading of the last 60 s, the sparkline's window"></span>`;
 $("metrics").innerHTML = METRICS.map((m) => `
   <div class="st-card metric-card"><div class="st-metric">
     <span class="st-metric__label">${icon(m.icon, "st-icon st-icon--sm")}${esc(m.label)}</span>
     ${m.key === "speed" ? `<div class="speed-values">
-      <div><span class="st-metric__value" id="mv-speed">-</span><span class="st-metric__sub" id="ms-speed">Decode</span></div>
-      <div class="speed-prefill"><span class="st-metric__value" id="mv-prefill">-</span><span class="st-metric__sub" id="ms-prefill">Prefill</span></div>
+      <div><span class="st-metric__value" id="mv-speed">-</span>${maxline("speed")}<span class="st-metric__sub" id="ms-speed">Decode</span></div>
+      <div class="speed-prefill"><span class="st-metric__value" id="mv-prefill">-</span>${maxline("prefill")}<span class="st-metric__sub" id="ms-prefill">Prefill</span></div>
     </div>` : `<span class="st-metric__value" id="mv-${m.key}">–</span>
-    <span class="st-metric__sub" id="ms-${m.key}"></span>`}
+    ${m.maxText && !m.maxUnder ? maxline(m.key) : ""}<span class="st-metric__sub" id="ms-${m.key}"></span>${m.maxUnder ? maxline(m.key) : ""}`}
     <svg class="st-metric__spark" id="sp-${m.key}" viewBox="0 0 100 32" preserveAspectRatio="none"${m.tone ? ` data-tone="${m.tone}"` : ""}>
       <path class="area" fill="currentColor" opacity=".12"/><path class="line" fill="none" stroke="currentColor"
       stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
@@ -148,6 +153,12 @@ function spark(id, values, max) {
 function setMetric(key, value, unit, sub) {
   $(`mv-${key}`).innerHTML = value == null ? "–" : `${esc(value)}${unit ? `<small>${esc(unit)}</small>` : ""}`;
   $(`ms-${key}`).textContent = sub || "";
+}
+// the card's "(max: ...)" line: the highest reading of the history the sparkline draws; nothing to show when the
+// series has no reading (an AMD card has no PCIe traffic counter)
+function setMax(key, values, text) {
+  const v = (values || []).filter((x) => x != null && !Number.isNaN(x));
+  $(`mx-${key}`).textContent = v.length ? `(max: ${text(Math.max(...v))})` : "";
 }
 
 let lastMetrics = null, metricsFailures = 0, keyWarned = false, mcpTick = 0;
@@ -305,6 +316,10 @@ function renderMonitor(live, hw, st, eng, h, last, requests, totals, kept) {
               hw.disk_write_mb == null ? "" : `write ${fmt(hw.disk_write_mb, 1)} MB/s`);
   }
   spark("sp-disk", h.disk_read_mb);
+
+  // the highest reading of the last 60 s under the live value, on the cards that ask for one (their sparkline's series)
+  for (const m of METRICS) if (m.maxText) setMax(m.key, h[m.series], m.maxText);
+  setMax("prefill", h.prefill_tok_s_mean, (v) => `${fmt(v)} t/s`);
 
   // context fill: the running request, else the last one
   const ctx = eng.max_context || 0;
