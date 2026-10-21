@@ -44,6 +44,9 @@ KNOWN = [
     ("coder", "IQ1_M", "ISTA-DASLab/Qwen3.8-Flash-Next-GSQ-RCO-Coder-GGUF", "IQ1_M/"),
     ("unsloth", "UD-IQ4_XS", "unsloth/Qwen3.8-Flash-Next-GGUF", "UD-IQ4_XS/"),
     ("unsloth", "UD-Q4_K_XL", "unsloth/Qwen3.8-Flash-Next-GGUF", "UD-Q4_K_XL/"),
+    ("unsloth", "UD-Q5_K_XL", "unsloth/Qwen3.8-Flash-Next-GGUF", "UD-Q5_K_XL/"),
+    ("unsloth", "UD-Q6_K_XL", "unsloth/Qwen3.8-Flash-Next-GGUF", "UD-Q6_K_XL/"),
+    ("unsloth", "Q8_0", "unsloth/Qwen3.8-Flash-Next-GGUF", "Q8_0/"),
 ]
 
 
